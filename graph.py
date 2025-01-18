@@ -1,5 +1,6 @@
 import os
 import yaml
+import nibabel as nib
 
 from graph import adjacency_matrix
 
@@ -14,16 +15,13 @@ output_dir = config["output_dir"]
 dwi_preprocessed = f"{output_dir}/dwi_preprocessed.nii.gz"
 mask_file = f"{output_dir}/mask.nii.gz"
 
-import nibabel as nib
-
 dwi_file = "./output/dwi_preprocessed.nii.gz"
 img = nib.load(dwi_file)
 voxel_size = img.header.get_zooms()[:3]
 print(f"Voxel size of preprocessed DWI: {voxel_size}")
 
 adjacency_matrix, labels = adjacency_matrix(dwi_preprocessed, mask_file, atlas_file, bval_file, bvec_file, output_dir)
-# adjacency_matrix, labels = adjacency_matrix_with_harvard_oxford(dwi_preprocessed, mask_file, atlas_file, bval_file, bvec_file, output_dir)
-# adjacency_matrix, labels = adjacency_matrix_with_mni152(dwi_preprocessed, mask_file, atlas_file, bval_file, bvec_file, output_dir)
+# adjacency_matrix, labels = adjacency_matrix_mni152(dwi_preprocessed, mask_file, atlas_file, bval_file, bvec_file, output_dir)
 
 print("Adjacency matrix shape:", adjacency_matrix.shape)
 print("Labels:", labels)

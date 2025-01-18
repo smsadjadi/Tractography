@@ -60,13 +60,6 @@ def preprocess_dwi(
     gtab : dipy.core.gradients.GradientTable
         Gradient table constructed from bvals/bvecs.
     """
-    import os
-    import numpy as np
-    from dipy.io.image import load_nifti, save_nifti
-    from dipy.core.gradients import gradient_table
-    from dipy.denoise.localpca import mppca
-    from dipy.denoise.gibbs import gibbs_removal
-    from dipy.segment.mask import median_otsu
 
     os.makedirs(out_dir, exist_ok=True)
 

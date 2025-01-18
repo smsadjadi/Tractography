@@ -5,8 +5,10 @@ from dipy.core.gradients import gradient_table
 from dipy.reconst.dti import TensorModel
 from dipy.tracking.local_tracking import LocalTracking
 from dipy.tracking.streamline import Streamlines
-from dipy.tracking.stopping_criterion import BinaryStoppingCriterion
 from dipy.tracking.utils import connectivity_matrix, seeds_from_mask
+from dipy.tracking.stopping_criterion import BinaryStoppingCriterion
+from dipy.data import fetch_mni152, read_mni152_template, get_sphere
+from dipy.direction import DeterministicDirectionGetter
 
 
 class CustomTensorDirectionGetter:
@@ -42,10 +44,11 @@ class CustomTensorDirectionGetter:
                 return self.principal_directions[i, j, k]
         return None
 
-
-def adjacency_matrix(dwi_file, mask_file, atlas_file, bval_file, bvec_file, output_dir):
+def adjacency_matrix_mni152(
+    dwi_file, mask_file, bval_file, bvec_file, output_dir
+):
     """
-    Calculate the adjacency matrix from DWI data using a reference atlas.
+    Calculate the adjacency matrix using the MNI152 atlas.
 
     Parameters
     ----------
@@ -53,8 +56,6 @@ def adjacency_matrix(dwi_file, mask_file, atlas_file, bval_file, bvec_file, outp
         Path to the preprocessed DWI file.
     mask_file : str
         Path to the brain mask file.
-    atlas_file : str
-        Path to the reference atlas file (aligned to DWI space).
     bval_file : str
         Path to the b-values file.
     bvec_file : str
@@ -66,8 +67,8 @@ def adjacency_matrix(dwi_file, mask_file, atlas_file, bval_file, bvec_file, outp
     -------
     adjacency_matrix : np.ndarray
         Adjacency matrix based on the atlas regions.
-    labels : np.ndarray
-        List of region labels from the atlas.
+    labels : list
+        List of region labels from the MNI152 atlas.
     """
     os.makedirs(output_dir, exist_ok=True)
 
@@ -75,11 +76,10 @@ def adjacency_matrix(dwi_file, mask_file, atlas_file, bval_file, bvec_file, outp
     dwi, affine = load_nifti(dwi_file)
     mask, _ = load_nifti(mask_file)
 
-    # Ensure mask is writable and contiguous
-    mask = np.ascontiguousarray(mask)
-
-    # Load atlas
-    atlas, _ = load_nifti(atlas_file)
+    # Load MNI152 atlas
+    print("Fetching MNI152 Atlas...")
+    fetch_mni152()
+    atlas = read_mni152_template()
 
     # Load gradient table
     bvals = np.loadtxt(bval_file)
@@ -92,7 +92,7 @@ def adjacency_matrix(dwi_file, mask_file, atlas_file, bval_file, bvec_file, outp
     dti_fit = dti_model.fit(dwi, mask=mask)
 
     # Generate stopping criterion based on FA
-    fa = np.ascontiguousarray(dti_fit.fa)  # Ensure FA is writable
+    fa = dti_fit.fa
     stopping_criterion = BinaryStoppingCriterion(fa > 0.2)
 
     # Create seeds from the mask
@@ -100,8 +100,12 @@ def adjacency_matrix(dwi_file, mask_file, atlas_file, bval_file, bvec_file, outp
 
     # Use principal eigenvectors for deterministic tractography
     print("Generating streamlines...")
-    principal_directions = np.ascontiguousarray(dti_fit.evecs[..., 0])  # Ensure writable array
-    direction_getter = CustomTensorDirectionGetter(principal_directions, mask)
+    principal_directions = dti_fit.evecs[..., 0]  # Principal eigenvectors
+
+    sphere = get_sphere('repulsion724')
+    direction_getter = DeterministicDirectionGetter.from_pmf(
+        principal_directions, max_angle=30.0, sphere=sphere
+    )
 
     # Perform deterministic tractography
     streamlines_generator = LocalTracking(
