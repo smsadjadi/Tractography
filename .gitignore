@@ -1,0 +1,11 @@
+# Cache
+__pycache__/
+
+# Data
+*.nii
+*.nii.gz
+
+# Docs
+*.docx
+*.doc
+*.pdf
